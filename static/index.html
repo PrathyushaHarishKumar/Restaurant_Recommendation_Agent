@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Restaurant Finder</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+--ink:#1a1410;
+--cream:#faf6f0;
+--warm:#f5ede0;
+--gold:#c9963a;
+--muted:#7a6e63;
+--border:#e0d5c8;
+--shadow:0 4px 24px rgba(0,0,0,.08);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+font-family:'DM Sans',sans-serif;
+background:var(--cream);
+color:var(--ink);
+}
+
+/* HEADER */
+
+header{
+background:var(--ink);
+color:white;
+padding:60px 30px;
+text-align:center;
+}
+
+header h1{
+font-family:'Playfair Display',serif;
+font-size:42px;
+}
+
+header em{
+color:var(--gold);
+font-style:normal;
+}
+
+header p{
+margin-top:10px;
+color:#ddd;
+font-size:15px;
+}
+
+/* MAIN */
+
+main{
+max-width:900px;
+margin:auto;
+padding:40px 20px;
+}
+
+/* SEARCH */
+
+.query-section{
+background:white;
+border:1px solid var(--border);
+border-radius:18px;
+padding:25px;
+box-shadow:var(--shadow);
+margin-bottom:30px;
+}
+
+textarea{
+width:100%;
+padding:15px;
+border-radius:10px;
+border:1px solid var(--border);
+font-size:15px;
+resize:vertical;
+min-height:90px;
+}
+
+textarea:focus{
+outline:none;
+border-color:var(--gold);
+}
+
+.query-actions{
+margin-top:15px;
+display:flex;
+gap:10px;
+}
+
+button{
+border:none;
+cursor:pointer;
+padding:10px 20px;
+border-radius:8px;
+font-size:14px;
+}
+
+.btn-primary{
+background:var(--ink);
+color:white;
+}
+
+.btn-secondary{
+background:#eee;
+}
+
+.preset-queries{
+margin-top:15px;
+display:flex;
+gap:8px;
+flex-wrap:wrap;
+}
+
+.preset{
+font-size:12px;
+padding:5px 10px;
+border-radius:20px;
+background:var(--warm);
+border:1px solid var(--border);
+cursor:pointer;
+}
+
+/* RESULTS */
+
+.results-grid{
+display:flex;
+flex-direction:column;
+gap:18px;
+}
+
+.restaurant-card{
+background:white;
+border:1px solid var(--border);
+border-radius:18px;
+box-shadow:var(--shadow);
+padding:20px;
+}
+
+.card-top{
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.card-name{
+font-family:'Playfair Display',serif;
+font-size:22px;
+}
+
+.score-number{
+font-family:'DM Mono';
+color:var(--gold);
+font-size:22px;
+}
+
+.card-sub{
+font-size:13px;
+color:var(--muted);
+margin-top:3px;
+}
+
+.card-stats{
+margin-top:10px;
+font-size:14px;
+display:flex;
+gap:18px;
+flex-wrap:wrap;
+}
+
+/* GOAL */
+
+#goal-display{
+display:none;
+margin-bottom:25px;
+}
+
+.goal-grid{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+gap:10px;
+}
+
+.goal-item{
+background:white;
+padding:10px;
+border-radius:10px;
+border:1px solid var(--border);
+}
+
+/* LOG */
+
+#log-section{
+margin-top:40px;
+display:none;
+}
+
+#log-body{
+background:#111;
+color:#ccc;
+padding:20px;
+font-family:'DM Mono';
+font-size:12px;
+max-height:260px;
+overflow:auto;
+}
+
+/* FOOTER */
+
+footer{
+margin-top:60px;
+text-align:center;
+font-size:12px;
+color:var(--muted);
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>Restaurant <em>Finder</em></h1>
+<p>Discover the best restaurants based on your preferences</p>
+</header>
+
+<main>
+
+<section class="query-section">
+
+<textarea id="query-input"
+placeholder="Example: Turkish restaurant in downtown Baltimore for two under $65 on Thursday at 7:30pm with a window view"></textarea>
+
+<div class="query-actions">
+<button class="btn-primary" id="search-btn" onclick="runQuery()">Search</button>
+<button class="btn-secondary" onclick="clearAll()">Clear</button>
+</div>
+
+<div class="preset-queries">
+<button class="preset" onclick="setQuery(this.dataset.q)" data-q="Turkish restaurant in Downtown Baltimore under $65 for two">Turkish Dinner</button>
+<button class="preset" onclick="setQuery(this.dataset.q)" data-q="Seafood restaurant in Harbor East Baltimore waterfront view">Seafood Harbor East</button>
+<button class="preset" onclick="setQuery(this.dataset.q)" data-q="Italian restaurant in Fells Point Baltimore">Italian Fells Point</button>
+<button class="preset" onclick="setQuery(this.dataset.q)" data-q="Best rated restaurant in Downtown Baltimore">Best Rated</button>
+</div>
+
+</section>
+
+<div id="goal-display">
+<div class="goal-grid" id="goal-grid"></div>
+</div>
+
+<div class="results-grid" id="results"></div>
+
+<div id="log-section">
+<h3>Reasoning Log</h3>
+<div id="log-body"></div>
+</div>
+
+</main>
+
+<footer>
+Restaurant Finder
+</footer>
+
+<script>
+
+const API_BASE='';
+
+function safeNum(v,d=0){
+return(typeof v==="number"&&!isNaN(v))?v:d;
+}
+
+async function runQuery(){
+
+const query=document.getElementById('query-input').value.trim();
+if(!query)return;
+
+clearResults();
+
+try{
+
+const res=await fetch(`${API_BASE}/api/query`,{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({query,top_n:5})
+});
+
+const data=await res.json();
+renderResults(data);
+
+}catch(err){
+alert("Server error. Make sure Flask server is running.");
+}
+
+}
+
+function renderResults(data){
+
+const results=data.results||[];
+
+const container=document.getElementById('results');
+
+if(!results.length){
+container.innerHTML="<p>No restaurants found.</p>";
+return;
+}
+
+container.innerHTML=results.map((r,i)=>`
+
+<div class="restaurant-card">
+
+<div class="card-top">
+
+<div>
+<div class="card-name">${r.name||'Restaurant'}</div>
+<div class="card-sub">${r.cuisine||''} • ${r.neighborhood||''}</div>
+</div>
+
+<div class="score-number">${safeNum(r.utility_score).toFixed(0)}</div>
+
+</div>
+
+<div class="card-stats">
+<div>💰 $${safeNum(r.price_per_person * 2).toFixed(0)} for two</div>
+<div>⭐ ${safeNum(r.rating)}/5 (${safeNum(r.reviews).toLocaleString()} reviews)</div>
+<div>🪟 ${r.views||'—'}</div>
+</div>
+
+</div>
+
+`).join('');
+
+renderLog(data.reasoning_log||[]);
+
+}
+
+function renderLog(log){
+
+const body=document.getElementById('log-body');
+const section=document.getElementById('log-section');
+
+section.style.display='block';
+
+body.innerHTML = log.map(e => `<div>${e}</div>`).join('');
+
+}
+
+function clearResults(){
+document.getElementById('results').innerHTML='';
+document.getElementById('log-section').style.display='none';
+}
+
+function clearAll(){
+document.getElementById('query-input').value='';
+clearResults();
+}
+
+function setQuery(q){
+document.getElementById('query-input').value=q;
+}
+
+</script>
+
+</body>
+</html>
